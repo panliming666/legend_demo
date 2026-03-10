@@ -30,10 +30,11 @@ func _ready():
 	color_rect = $ColorRect
 	if has_node("AttackArea"):
 		attack_area = $AttackArea
-@onready var hp_bar: ProgressBar = $UI/HPBar
-
-func _ready():
+	
+	# 延迟初始化UI引用
+	await get_tree().create_timer(0.1).timeout
 	update_hp_bar()
+	update_exp_bar()
 	print("玩家初始化完成 - HP:", current_hp, "/", max_hp)
 
 func _physics_process(delta):
@@ -62,16 +63,6 @@ func _physics_process(delta):
 		perform_attack()
 	
 	move_and_slide()
-
-func update_animation(direction: Vector2):
-	# 根据方向更新动画
-	if direction.x > 0:
-		animated_sprite.flip_h = false
-	elif direction.x < 0:
-		animated_sprite.flip_h = true
-	
-	if not is_attacking:
-		animated_sprite.play("run")
 
 func perform_attack():
 	is_attacking = true
@@ -111,6 +102,7 @@ func heal(amount: int):
 
 func gain_exp(amount: int):
 	exp += amount
+	update_exp_bar()
 	print("获得", amount, "点经验")
 	check_level_up()
 
@@ -129,6 +121,10 @@ func level_up():
 	defense += 2
 	exp = 0
 	
+	update_hp_bar()
+	update_exp_bar()
+	update_level_label()
+	
 	print("升级！当前等级:", level)
 	print("HP:", max_hp, "MP:", max_mp, "攻击:", attack, "防御:", defense)
 
@@ -137,13 +133,42 @@ func die():
 	color_rect.color = Color(0.3, 0.3, 0.3, 0.5)
 	print("玩家死亡")
 	await get_tree().create_timer(2.0).timeout
-	# 这里可以添加复活或游戏结束逻辑
 	get_tree().reload_current_scene()
 
 func update_hp_bar():
-	if has_node("../UI/HPBar"):
-		var hp_bar = ../UI/HPBar
-		hp_bar.max_value = max_hp
-		hp_bar.value = current_hp
-		if hp_bar.has_node("Label"):
-			hp_bar.get_node("Label").text = "HP: " + str(current_hp) + "/" + str(max_hp)
+	var ui = get_tree().current_scene.get_node_or_null("UI")
+	if ui:
+		var hp_bar = ui.get_node_or_null("HPBar")
+		if hp_bar:
+			hp_bar.max_value = max_hp
+			hp_bar.value = current_hp
+			var label = hp_bar.get_node_or_null("Label")
+			if label:
+				label.text = "HP: " + str(current_hp) + "/" + str(max_hp)
+		
+		var mp_bar = ui.get_node_or_null("MPBar")
+		if mp_bar:
+			mp_bar.max_value = max_mp
+			mp_bar.value = current_mp
+			var label = mp_bar.get_node_or_null("Label")
+			if label:
+				label.text = "MP: " + str(current_mp) + "/" + str(max_mp)
+
+func update_exp_bar():
+	var ui = get_tree().current_scene.get_node_or_null("UI")
+	if ui:
+		var exp_bar = ui.get_node_or_null("EXPBar")
+		if exp_bar:
+			var required_exp = level * 100
+			exp_bar.max_value = required_exp
+			exp_bar.value = exp
+			var label = exp_bar.get_node_or_null("Label")
+			if label:
+				label.text = "EXP: " + str(exp) + "/" + str(required_exp)
+
+func update_level_label():
+	var ui = get_tree().current_scene.get_node_or_null("UI")
+	if ui:
+		var level_label = ui.get_node_or_null("LevelLabel")
+		if level_label:
+			level_label.text = "等级: " + str(level)
