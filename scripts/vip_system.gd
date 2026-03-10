@@ -2,102 +2,105 @@ extends Node
 
 class_name VIPSystem
 
-# VIP系统
+# VIP会员系统
 
 signal vip_level_changed(new_level: int)
-
-# VIP等级
-var vip_level: int = 0
-var vip_exp: int = 0
+signal vip_points_gained(points: int)
 
 # VIP等级配置
-var vip_config: Dictionary = {
-	0: {"name": "普通玩家", "exp_required": 0},
-	1: {"name": "VIP1", "exp_required": 100, "benefits": ["每日签到+1", "经验加成+5%"]},
-	2: {"name": "VIP2", "exp_required": 500, "benefits": ["每日签到+2", "经验加成+10%", "背包上限+20"]},
-	3: {"name": "VIP3", "exp_required": 2000, "benefits": ["每日签到+3", "经验加成+15%", "掉落加成+5%", "专属传送"]},
-	4: {"name": "VIP4", "exp_required": 5000, "benefits": ["每日签到+4", "经验加成+20%", "掉落加成+10%", "专属称号"]},
-	5: {"name": "VIP5", "exp_required": 10000, "benefits": ["每日签到+5", "经验加成+30%", "掉落加成+15%", "专属时装"]},
-	6: {"name": "VIP6", "exp_required": 20000, "benefits": ["每日签到+6", "经验加成+40%", "掉落加成+20%", "专属坐骑"]},
-	7: {"name": "VIP7", "exp_required": 50000, "benefits": ["每日签到+7", "经验加成+50%", "掉落加成+30%", "专属灵宠"]},
-	8: {"name": "VIP8", "exp_required": 100000, "benefits": ["每日签到+8", "经验加成+80%", "掉落加成+50%", "全属性+10%"]},
-	9: {"name": "VIP9", "exp_required": 200000, "benefits": ["每日签到+9", "经验加成+100%", "掉落加成+100%", "全属性+20%"]},
-	10: {"name": "SVIP", "exp_required": 500000, "benefits": ["无限每日签到", "经验加成+200%", "掉落加成+200%", "全属性+50%"]}
+var vip_levels: Dictionary = {
+	0: {"name": "普通修士", "points_required": 0, "benefits": {}},
+	1: {"name": "VIP1", "points_required": 100, "benefits": {"exp_bonus": 0.05, "gold_bonus": 0.05}},
+	2: {"name": "VIP2", "points_required": 500, "benefits": {"exp_bonus": 0.10, "gold_bonus": 0.10, "daily_gift": 1}},
+	3: {"name": "VIP3", "points_required": 1000, "benefits": {"exp_bonus": 0.15, "gold_bonus": 0.15, "daily_gift": 2}},
+	4: {"name": "VIP4", "points_required": 2000, "benefits": {"exp_bonus": 0.20, "gold_bonus": 0.20, "daily_gift": 3, "auto_battle": true}},
+	5: {"name": "VIP5", "points_required": 5000, "benefits": {"exp_bonus": 0.25, "gold_bonus": 0.25, "daily_gift": 5, "auto_battle": true, "extra_dungeon": 1}},
+	6: {"name": "VIP6", "points_required": 10000, "benefits": {"exp_bonus": 0.30, "gold_bonus": 0.30, "daily_gift": 10, "auto_battle": true, "extra_dungeon": 2}},
+	7: {"name": "VIP7", "points_required": 20000, "benefits": {"exp_bonus": 0.40, "gold_bonus": 0.40, "daily_gift": 15, "auto_battle": true, "extra_dungeon": 3, "special_title": true}},
+	8: {"name": "VIP8", "points_required": 50000, "benefits": {"exp_bonus": 0.50, "gold_bonus": 0.50, "daily_gift": 20, "auto_battle": true, "extra_dungeon": 5, "special_title": true, "exclusive_mount": true}},
+	9: {"name": "VIP9", "points_required": 100000, "benefits": {"exp_bonus": 0.60, "gold_bonus": 0.60, "daily_gift": 30, "auto_battle": true, "extra_dungeon": 10, "special_title": true, "exclusive_mount": true, "exclusive_fashion": true}},
+	10: {"name": "至尊VIP", "points_required": 200000, "benefits": {"exp_bonus": 0.80, "gold_bonus": 0.80, "daily_gift": 50, "auto_battle": true, "extra_dungeon": 20, "special_title": true, "exclusive_mount": true, "exclusive_fashion": true, "exclusive_pet": true}}
 }
+
+var current_vip_level: int = 0
+var vip_points: int = 0
 
 func _ready():
 	load_vip()
 
-# 获得VIP经验
-func add_vip_exp(amount: int):
-	vip_exp += amount
+# 添加VIP点数
+func add_vip_points(points: int) -> bool:
+	vip_points += points
+	emit_signal("vip_points_gained", points)
+	
+	# 检查升级
+	var old_level = current_vip_level
 	check_level_up()
-	save_vip()
+	
+	if current_vip_level > old_level:
+		return true
+	return false
 
 # 检查升级
 func check_level_up():
-	var new_level = 0
-	
-	for level in range(10, -1, -1):
-		if vip_exp >= vip_config[level].exp_required:
-			new_level = level
+	for level in range(10, 0, -1):
+		if vip_points >= vip_levels[level].points_required:
+			if current_vip_level < level:
+				current_vip_level = level
+				emit_signal("vip_level_changed", level)
 			break
-	
-	if new_level > vip_level:
-		vip_level = new_level
-		emit_signal("vip_level_changed", vip_level)
-		print("VIP等级提升：", vip_level)
+
+# 获取当前特权
+func get_benefits() -> Dictionary:
+	return vip_levels.get(current_vip_level, {}).get("benefits", {})
+
+# 获取特权值
+func get_benefit(benefit_name: String) -> float:
+	var benefits = get_benefits()
+	return benefits.get(benefit_name, 0)
 
 # 获取VIP信息
 func get_vip_info() -> Dictionary:
-	var config = vip_config[vip_level]
-	var next_level = vip_level + 1
-	var exp_needed = 0
-	var exp_progress = 0
-	
-	if next_level <= 10:
-		exp_needed = vip_config[next_level].exp_required - vip_exp
-		exp_progress = vip_exp - vip_config[vip_level].exp_required
+	var current = vip_levels[current_vip_level]
+	var next_level = min(current_vip_level + 1, 10)
+	var next = vip_levels[next_level]
 	
 	return {
-		"level": vip_level,
-		"name": config.name,
-		"exp": vip_exp,
-		"exp_needed": exp_needed,
-		"exp_progress": exp_progress,
-		"benefits": config.benefits,
-		"progress_percent": float(exp_progress) / (exp_needed + exp_progress) * 100 if exp_needed > 0 else 100
+		"level": current_vip_level,
+		"name": current.name,
+		"points": vip_points,
+		"current_required": current.points_required,
+		"next_required": next.points_required,
+		"progress": float(vip_points - current.points_required) / (next.points_required - current.points_required) if next_level > current_vip_level else 1.0,
+		"benefits": current.benefits
 	}
 
-# 获取VIP加成
-func get_vip_bonus() -> Dictionary:
-	var bonus = {
-		"exp_bonus": vip_level * 0.05,
-		"drop_bonus": vip_level * 0.05,
-		"sign_bonus": vip_level
+# 每日VIP奖励
+func claim_daily_vip_reward() -> Dictionary:
+	var benefits = get_benefits()
+	var daily_gift = benefits.get("daily_gift", 0)
+	
+	if daily_gift <= 0:
+		return {"success": false, "message": "当前VIP等级无每日奖励"}
+	
+	return {
+		"success": true,
+		"gold": daily_gift * 100,
+		"exp": daily_gift * 500,
+		"items": ["VIP礼包×" + str(daily_gift)],
+		"message": "领取VIP每日奖励"
 	}
-	
-	if vip_level >= 8:
-		bonus["all_stats"] = 0.1 * (vip_level - 7)
-	elif vip_level >= 9:
-		bonus["all_stats"] = 0.2
-	
-	return bonus
-
-# 是否为VIP
-func is_vip() -> bool:
-	return vip_level > 0
 
 # 保存/加载
 func save_vip():
 	var config = ConfigFile.new()
-	config.set_value("vip", "level", vip_level)
-	config.set_value("vip", "exp", vip_exp)
+	config.set_value("vip", "level", current_vip_level)
+	config.set_value("vip", "points", vip_points)
 	config.save("user://vip.cfg")
 
 func load_vip():
 	if FileAccess.file_exists("user://vip.cfg"):
-		var cfg = ConfigFile.new()
-		if cfg.load("user://vip.cfg") == OK:
-			vip_level = cfg.get_value("vip", "level", 0)
-			vip_exp = cfg.get_value("vip", "exp", 0)
+		var config = ConfigFile.new()
+		if config.load("user://vip.cfg") == OK:
+			current_vip_level = config.get_value("vip", "level", 0)
+			vip_points = config.get_value("vip", "points", 0)
