@@ -18,7 +18,7 @@ var spawn_enemy_count: int = 10
 var spawn_interval: float = 5.0
 
 # 场景引用
-@onready var enemy_scene = preload("res://scenes/enemy.tscn")
+var enemy_scene = preload("res://scenes/enemy.tscn")
 
 func _ready():
 	if instance == null:
@@ -45,26 +45,36 @@ func start_enemy_spawner():
 			spawn_enemy()
 
 func spawn_enemy():
-	if enemy_scene and player:
-		var enemy = enemy_scene.instantiate()
-		
-		# 在玩家周围随机位置生成
-		var random_angle = randf() * PI * 2
-		var random_distance = randf_range(300, 500)
-		var spawn_pos = player.global_position + Vector2(
-			cos(random_angle) * random_distance,
-			sin(random_angle) * random_distance
-		)
-		
-		enemy.global_position = spawn_pos
-		get_tree().current_scene.add_child(enemy)
-		
-		# 根据当前关卡调整敌人等级
-		enemy.level = current_level
-		enemy.max_hp = 30 + (current_level * 10)
-		enemy.current_hp = enemy.max_hp
-		enemy.attack = 5 + (current_level * 2)
-		enemy.defense = 2 + (current_level)
+	if enemy_scene == null:
+		return
+	
+	var current_scene = get_tree().current_scene
+	if current_scene == null:
+		return
+	
+	var player = current_scene.get_node_or_null("Player")
+	if player == null:
+		return
+	
+	var enemy = enemy_scene.instantiate()
+	
+	# 在玩家周围随机位置生成
+	var random_angle = randf() * PI * 2
+	var random_distance = randf_range(300, 500)
+	var spawn_pos = player.global_position + Vector2(
+		cos(random_angle) * random_distance,
+		sin(random_angle) * random_distance
+	)
+	
+	enemy.global_position = spawn_pos
+	current_scene.add_child(enemy)
+	
+	# 根据当前关卡调整敌人等级
+	enemy.level = current_level
+	enemy.max_hp = 30 + (current_level * 10)
+	enemy.current_hp = enemy.max_hp
+	enemy.attack = 5 + (current_level * 2)
+	enemy.defense = 2 + (current_level)
 
 func on_enemy_killed(enemy_level: int):
 	total_enemies_killed += 1

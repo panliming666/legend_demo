@@ -23,9 +23,13 @@ var defense: int = 5
 var is_attacking: bool = false
 var is_dead: bool = false
 
-# 引用
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
-@onready var attack_area: Area2D = $AttackArea
+var color_rect: ColorRect
+var attack_area: Area2D
+
+func _ready():
+	color_rect = $ColorRect
+	if has_node("AttackArea"):
+		attack_area = $AttackArea
 @onready var hp_bar: ProgressBar = $UI/HPBar
 
 func _ready():
@@ -44,10 +48,14 @@ func _physics_process(delta):
 	
 	if input_vector != Vector2.ZERO:
 		velocity = velocity.move_toward(input_vector * speed, acceleration)
-		update_animation(input_vector)
+		# 根据方向翻转颜色
+		if input_vector.x > 0:
+			color_rect.color = Color(0.3, 0.7, 1, 1)
+		elif input_vector.x < 0:
+			color_rect.color = Color(0.15, 0.5, 1, 1)
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, friction)
-		animated_sprite.play("idle")
+		color_rect.color = Color(0.2, 0.6, 1, 1)
 	
 	# 攻击控制
 	if Input.is_action_just_pressed("ui_accept") and not is_attacking:
@@ -67,16 +75,18 @@ func update_animation(direction: Vector2):
 
 func perform_attack():
 	is_attacking = true
-	animated_sprite.play("attack")
+	# 攻击闪烁效果
+	color_rect.color = Color(1, 1, 0.5, 1)
 	
 	# 检测攻击范围内的敌人
-	var bodies = attack_area.get_overlapping_bodies()
-	for body in bodies:
-		if body.is_in_group("enemies"):
-			body.take_damage(attack)
-			print("攻击命中！造成", attack, "点伤害")
+	if has_node("AttackArea"):
+		var bodies = $AttackArea.get_overlapping_bodies()
+		for body in bodies:
+			if body.is_in_group("enemies") and body.has_method("take_damage"):
+				body.take_damage(attack)
+				print("攻击命中！造成", attack, "点伤害")
 	
-	await animated_sprite.animation_finished
+	await get_tree().create_timer(0.2).timeout
 	is_attacking = false
 
 func take_damage(amount: int):
@@ -87,9 +97,9 @@ func take_damage(amount: int):
 	print("受到", actual_damage, "点伤害，剩余HP:", current_hp)
 	
 	# 受伤闪烁效果
-	animated_sprite.modulate = Color.RED
+	color_rect.color = Color.RED
 	await get_tree().create_timer(0.1).timeout
-	animated_sprite.modulate = Color.WHITE
+	color_rect.color = Color(0.2, 0.6, 1, 1)
 	
 	if current_hp <= 0:
 		die()
@@ -124,12 +134,16 @@ func level_up():
 
 func die():
 	is_dead = true
-	animated_sprite.play("die")
+	color_rect.color = Color(0.3, 0.3, 0.3, 0.5)
 	print("玩家死亡")
 	await get_tree().create_timer(2.0).timeout
 	# 这里可以添加复活或游戏结束逻辑
+	get_tree().reload_current_scene()
 
 func update_hp_bar():
-	if hp_bar:
+	if has_node("../UI/HPBar"):
+		var hp_bar = ../UI/HPBar
 		hp_bar.max_value = max_hp
 		hp_bar.value = current_hp
+		if hp_bar.has_node("Label"):
+			hp_bar.get_node("Label").text = "HP: " + str(current_hp) + "/" + str(max_hp)

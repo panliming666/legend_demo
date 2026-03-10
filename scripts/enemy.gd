@@ -24,12 +24,12 @@ var is_chasing: bool = false
 var is_attacking: bool = false
 var is_dead: bool = false
 
-# 引用
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+var color_rect: ColorRect
 var player: Node = null
 
 func _ready():
 	add_to_group("enemies")
+	color_rect = $ColorRect
 	# 查找玩家
 	var players = get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
@@ -63,13 +63,14 @@ func _physics_process(delta):
 
 func perform_attack():
 	is_attacking = true
-	animated_sprite.play("attack")
+	color_rect.color = Color(1, 0.5, 0.5, 1)
 	
 	# 对玩家造成伤害
 	if player and player.has_method("take_damage"):
 		player.take_damage(attack)
 	
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(0.3).timeout
+	color_rect.color = Color(1, 0.2, 0.2, 1)
 	is_attacking = false
 
 func take_damage(amount: int):
@@ -79,9 +80,9 @@ func take_damage(amount: int):
 	print("敌人受到", actual_damage, "点伤害，剩余HP:", current_hp)
 	
 	# 受伤闪烁
-	animated_sprite.modulate = Color.RED
+	color_rect.color = Color.YELLOW
 	await get_tree().create_timer(0.1).timeout
-	animated_sprite.modulate = Color.WHITE
+	color_rect.color = Color(1, 0.2, 0.2, 1)
 	
 	# 掉落经验
 	if current_hp <= 0:
@@ -89,11 +90,16 @@ func take_damage(amount: int):
 
 func die():
 	is_dead = true
-	animated_sprite.play("die")
+	color_rect.color = Color(0.5, 0.5, 0.5, 0.5)
 	
 	# 掉落经验给玩家
 	if player and player.has_method("gain_exp"):
 		player.gain_exp(level * 10)
 	
-	await get_tree().create_timer(1.0).timeout
+	# 触发掉落
+	var game_manager = get_tree().current_scene.get_node_or_null("GameManager")
+	if game_manager and game_manager.has_method("on_enemy_killed"):
+		game_manager.on_enemy_killed(level)
+	
+	await get_tree().create_timer(0.5).timeout
 	queue_free()
