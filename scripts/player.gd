@@ -15,13 +15,15 @@ var attack: int = 10
 var defense: int = 5
 
 # 移动参数
-@export var speed: float = 200.0
+@export var walk_speed: float = 150.0   # 行走速度
+@export var run_speed: float = 250.0    # 跑动速度
+var current_speed: float = 0.0
 
-# 鼠标交互
-var target_position: Vector2 = Vector2.ZERO
-var is_moving: bool = false
-var target_enemy: Node = null
+# 鼠标控制
+var is_walking: bool = false
+var is_running: bool = false
 var attack_range: float = 50.0
+var target_enemy: Node = null
 
 # 状态
 var is_attacking: bool = false
@@ -35,132 +37,90 @@ func _ready():
 	if has_node("AttackArea"):
 		attack_area = $AttackArea
 	
-	# 初始化目标位置为当前位置
-	target_position = global_position
-	
 	await get_tree().create_timer(0.1).timeout
 	update_hp_bar()
 	update_exp_bar()
-	print("玩家初始化完成 - 鼠标交互模式")
+	print("玩家初始化完成 - 鼠标方向控制模式")
 
 func _input(event):
 	if is_dead:
 		return
 	
-	# 鼠标左键点击
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		handle_left_click(event.position)
-	
-	# 鼠标右键点击（技能）
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		handle_right_click(event.position)
+	# 鼠标左键 - 行走
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				is_walking = true
+				current_speed = walk_speed
+			else:
+				is_walking = false
+		
+		# 鼠标右键 - 跑动
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				is_running = true
+				current_speed = run_speed
+			else:
+				is_running = false
+		
+		# 优先跑动
+		if is_running:
+			is_walking = false
 
-func handle_left_click(screen_position: Vector2):
-	# 将屏幕坐标转换为世界坐标
-	var world_position = get_global_mouse_position()
+func _physics_process(delta):
+	if is_dead:
+		return
 	
-	# 检测点击的对象
+	# 获取鼠标世界坐标
+	var mouse_pos = get_global_mouse_position()
+	
+	# 计算朝向
+	var direction = (mouse_pos - global_position).normalized()
+	
+	# 检测鼠标位置的敌人（用于攻击）
+	check_enemy_at_mouse(mouse_pos)
+	
+	# 移动控制
+	if is_walking or is_running:
+		velocity = direction * current_speed
+		
+		# 更新朝向颜色
+		if color_rect:
+			if is_running:
+				color_rect.color = Color(0.4, 0.8, 1, 1)  # 跑动时颜色更亮
+			else:
+				color_rect.color = Color(0.2, 0.6, 1, 1)  # 行走时正常颜色
+		
+		move_and_slide()
+		
+		# 如果鼠标在敌人上且在攻击范围内，自动攻击
+		if target_enemy and not is_attacking:
+			var distance = global_position.distance_to(target_enemy.global_position)
+			if distance <= attack_range:
+				perform_attack_on(target_enemy)
+	else:
+		# 停止移动
+		velocity = velocity.move_toward(Vector2.ZERO, 20.0)
+		move_and_slide()
+		if color_rect:
+			color_rect.color = Color(0.2, 0.6, 1, 1)
+
+func check_enemy_at_mouse(mouse_pos: Vector2):
+	# 检测鼠标位置的敌人
 	var space_state = get_world_2d().direct_space_state
 	var query = PhysicsPointQueryParameters2D.new()
-	query.position = world_position
+	query.position = mouse_pos
 	query.collide_with_areas = true
 	query.collide_with_bodies = true
 	
 	var results = space_state.intersect_point(query)
 	
-	# 检查是否点击了敌人
 	target_enemy = null
 	for result in results:
 		var collider = result.collider
 		if collider.is_in_group("enemies"):
 			target_enemy = collider
 			break
-	
-	if target_enemy:
-		# 点击敌人 -> 攻击模式
-		print("目标锁定: ", target_enemy.name)
-		move_to_attack(target_enemy)
-	else:
-		# 点击地面 -> 移动
-		target_position = world_position
-		is_moving = true
-		target_enemy = null
-		print("移动到: ", world_position)
-
-func handle_right_click(screen_position: Vector2):
-	# 右键技能攻击
-	var world_position = get_global_mouse_position()
-	
-	# 检测目标
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsPointQueryParameters2D.new()
-	query.position = world_position
-	
-	var results = space_state.intersect_point(query)
-	
-	for result in results:
-		var collider = result.collider
-		if collider.is_in_group("enemies"):
-			# 对敌人释放技能
-			cast_skill_on_target(collider)
-			return
-	
-	# 没有目标，原地释放
-	cast_skill_on_position(world_position)
-
-func move_to_attack(enemy: Node):
-	if enemy == null:
-		return
-	
-	var distance = global_position.distance_to(enemy.global_position)
-	
-	if distance <= attack_range:
-		# 在攻击范围内，直接攻击
-		perform_attack_on(enemy)
-	else:
-		# 移动到攻击范围内
-		var direction = (enemy.global_position - global_position).normalized()
-		target_position = enemy.global_position - direction * (attack_range - 10)
-		is_moving = true
-		target_enemy = enemy
-
-func _physics_process(delta):
-	if is_dead:
-		return
-	
-	# 处理移动
-	if is_moving:
-		var direction = (target_position - global_position).normalized()
-		var distance = global_position.distance_to(target_position)
-		
-		if distance < 5:
-			# 到达目标
-			is_moving = false
-			velocity = Vector2.ZERO
-			
-			# 如果有目标敌人，开始攻击
-			if target_enemy and is_instance_valid(target_enemy):
-				var enemy_distance = global_position.distance_to(target_enemy.global_position)
-				if enemy_distance <= attack_range:
-					perform_attack_on(target_enemy)
-		else:
-			# 继续移动
-			velocity = direction * speed
-			
-			# 更新朝向
-			if color_rect:
-				if direction.x > 0:
-					color_rect.color = Color(0.3, 0.7, 1, 1)
-				elif direction.x < 0:
-					color_rect.color = Color(0.15, 0.5, 1, 1)
-		
-		move_and_slide()
-	
-	# 自动攻击目标
-	if target_enemy and is_instance_valid(target_enemy):
-		var distance = global_position.distance_to(target_enemy.global_position)
-		if distance <= attack_range and not is_attacking:
-			perform_attack_on(target_enemy)
 
 func perform_attack_on(enemy: Node):
 	if is_attacking or enemy == null:
@@ -177,29 +137,12 @@ func perform_attack_on(enemy: Node):
 		enemy.take_damage(attack)
 		print("攻击命中！", attack, "点伤害")
 	
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(0.4).timeout
 	
 	if color_rect:
 		color_rect.color = Color(0.2, 0.6, 1, 1)
 	
 	is_attacking = false
-
-func cast_skill_on_target(target: Node):
-	# 简单的技能实现
-	print("对目标释放技能")
-	perform_attack_on(target)
-
-func cast_skill_on_position(position: Vector2):
-	# 在指定位置释放技能（AOE）
-	print("在位置释放技能: ", position)
-	
-	# 检测范围内的敌人
-	var enemies = get_tree().get_nodes_in_group("enemies")
-	for enemy in enemies:
-		var distance = position.distance_to(enemy.global_position)
-		if distance < 100:  # AOE范围
-			if enemy.has_method("take_damage"):
-				enemy.take_damage(attack * 1.5)  # AOE伤害更高
 
 func take_damage(amount: int):
 	var actual_damage = max(1, amount - defense)
