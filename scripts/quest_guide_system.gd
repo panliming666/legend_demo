@@ -166,7 +166,7 @@ var quest_database: Dictionary = {
 var player_quests: Dictionary = {}  # player_id: {quest_id: quest_data}
 
 func _ready():
-	pass
+	print("任务引导系统初始化完成")
 
 # 接受任务
 func accept_quest(player_id: String, quest_id: String, player_level: int) -> Dictionary:

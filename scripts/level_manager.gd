@@ -164,8 +164,14 @@ func save_level_progress():
 		save_manager.save_game(save_data)
 
 func load_level_progress():
-	# 加载进度（简化版本）
-	pass
+	# 从存档加载关卡进度
+	if SaveManager:
+		var save_data = SaveManager.load_game()
+		if save_data.has("world") and save_data.world.has("current_level"):
+			current_level = save_data.world.current_level
+			print("加载关卡进度: ", current_level)
+			return true
+	return false
 
 func get_level_name(level_index: int) -> String:
 	if level_index >= 1 and level_index <= levels.size():

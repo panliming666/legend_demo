@@ -299,5 +299,11 @@ func save_quest_progress():
 		save_manager.current_save["quests"] = save_data
 
 func load_quest_progress():
-	# 从存档加载
-	pass
+	# 从存档加载任务进度
+	if SaveManager:
+		var save_data = SaveManager.load_game()
+		if save_data.has("quests"):
+			player_quests = save_data["quests"]
+			print("任务进度已加载")
+			return true
+	return false
