@@ -1,4 +1,5 @@
 class_name Equipment
+extends RefCounted
 
 enum EquipmentType {
 	WEAPON,

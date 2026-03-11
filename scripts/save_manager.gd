@@ -1,7 +1,5 @@
 extends Node
 
-class_name SaveManager
-
 # 存档系统 - 保存和加载游戏进度
 
 const SAVE_PATH = "user://savegame.save"

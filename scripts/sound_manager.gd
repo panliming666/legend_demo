@@ -1,5 +1,3 @@
-class_name SoundManager
-
 extends Node
 
 # 音效管理器 - 管理游戏音效和音乐
@@ -31,6 +29,12 @@ func _generate_sounds():
 	# 由于无法使用外部音效文件，使用程序化生成
 	# 这些是基于波的简单音效，可在Godot中播放
 	print("音效管理器初始化完成")
+
+func play_bgm(bgm_name: String):
+	if not music_enabled:
+		return
+	print("播放背景音乐: ", bgm_name)
+	# TODO: 实现实际 BGM 播放
 
 func play_sound(sound_name: String, volume_scale: float = 1.0):
 	if not sound_enabled:

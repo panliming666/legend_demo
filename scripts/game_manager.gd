@@ -1,9 +1,16 @@
 extends Node
 
-class_name GameManager
+# 预加载类
+const EquipmentClass = preload("res://scripts/equipment.gd")
+const DropSystemClass = preload("res://scripts/drop_system.gd")
 
 # 单例实例
-static var instance: GameManager
+static var instance: Node
+
+# 游戏信号
+signal level_up(new_level: int)
+signal game_over()
+signal player_died()
 
 # 游戏状态
 var current_level: int = 1
@@ -80,7 +87,7 @@ func on_enemy_killed(enemy_level: int):
 	total_enemies_killed += 1
 	
 	# 计算掉落
-	var drops = DropSystem.calculate_drop(enemy_level)
+	var drops = DropSystemClass.calculate_drop(enemy_level)
 	
 	# 给予玩家奖励
 	if player:
@@ -93,7 +100,7 @@ func on_enemy_killed(enemy_level: int):
 			# 触发掉落UI显示
 			show_drop_notification(drops["equipment"])
 
-func show_drop_notification(equipment: Equipment):
+func show_drop_notification(equipment: Object):
 	print("获得装备: ", equipment.name)
 	print("稀有度: ", equipment.get_rarity_color())
 	print("属性: ")
