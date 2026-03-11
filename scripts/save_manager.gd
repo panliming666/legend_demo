@@ -105,7 +105,9 @@ func auto_save(player: Node):
 		"exp": player.current_exp,
 		"gold": player.gold if "gold" in player else 0,
 		"attack_power": player.attack_power if "attack_power" in player else 10,
+		"magic_power": player.magic_power if "magic_power" in player else 0,
 		"defense": player.defense,
+		"class": player.current_class if "current_class" in player else 0,
 		"position": {
 			"x": player.global_position.x,
 			"y": player.global_position.y
@@ -134,8 +136,15 @@ func load_to_player(player: Node):
 	if "attack_power" in player and data.has("attack_power"):
 		player.attack_power = data["attack_power"]
 	
+	if "magic_power" in player and data.has("magic_power"):
+		player.magic_power = data["magic_power"]
+	
 	if "gold" in player and data.has("gold"):
 		player.gold = data["gold"]
+	
+	# 恢复职业
+	if "current_class" in player and data.has("class"):
+		player.set_class(data["class"])
 	
 	# 恢复位置
 	if data.has("position"):
