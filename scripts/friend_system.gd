@@ -26,7 +26,7 @@ var block_list: Array = []  # 黑名单
 var private_messages: Dictionary = {}  # friend_id: Array of messages
 
 func _ready():
-	pass
+	print("好友系统初始化完成")
 
 # 添加好友
 func add_friend(player_id: String, player_name: String) -> Dictionary:

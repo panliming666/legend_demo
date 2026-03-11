@@ -224,7 +224,7 @@ func claim_reward(player_id: String, activity_id: String) -> Dictionary:
 	}
 
 # 获取玩家所有活动
-def get_player_activities(player_id: String) -> Array:
+func get_player_activities(player_id: String) -> Array:
 	var result = []
 	
 	for act_id in activity_database.keys():

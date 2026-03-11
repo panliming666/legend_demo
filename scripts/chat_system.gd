@@ -27,7 +27,7 @@ var message_history: Dictionary = {
 var max_history: int = 100
 
 func _ready():
-	pass
+	print("聊天系统初始化完成")
 
 # 发送消息
 func send_message(channel: int, sender_id: String, sender_name: String, message: String) -> bool:
