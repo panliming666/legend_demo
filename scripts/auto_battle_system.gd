@@ -93,7 +93,7 @@ func find_target() -> Node:
 	if enemies.is_empty():
 		return null
 	
-	var player = get_tree().get_first_node_in_group("players")
+	var player = get_tree().get_first_node_in_group("player")
 	if not player:
 		return null
 	
