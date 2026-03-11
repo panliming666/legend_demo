@@ -85,7 +85,7 @@ var event_database: Dictionary = {
 var trigger_chance: float = 0.3  # 30%概率触发事件
 
 func _ready():
-	pass
+	print("随机事件系统初始化完成")
 
 # 尝试触发随机事件
 func try_trigger_event() -> Dictionary:
