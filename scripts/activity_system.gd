@@ -126,8 +126,11 @@ func check_activities():
 		# 检查是否在活动时间
 		if activity.type == ActivityType.LIMITED_TIME:
 			# 检查是否在时间范围内
-			# 简化处理，实际应该更复杂
-			pass
+			# 简化处理：限时活动在周末开启
+			var weekday = Time.get_weekday_from_system()
+			if weekday == 0 or weekday == 6:  # 周六或周日
+				# 活动开启中
+				pass
 
 # 获取活动状态
 func get_activity_status(activity_id: String, player_id: String) -> Dictionary:

@@ -25,7 +25,7 @@ var settings: Dictionary = {
 }
 
 func _ready():
-	pass
+	print("自动战斗系统初始化完成")
 
 func _process(delta):
 	if is_auto_battling:
