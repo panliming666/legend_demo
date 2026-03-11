@@ -91,10 +91,13 @@ func on_enemy_killed(enemy_level: int):
 	
 	# 给予玩家奖励
 	if player:
-		if player.has_method("gain_exp"):
-			player.gain_exp(drops["exp"])
+		if player.has_method("add_exp"):
+			player.add_exp(drops["exp"])
 		
 		total_gold_earned += drops["gold"]
+		
+		if player.has_method("add_gold"):
+			player.add_gold(drops["gold"])
 		
 		if drops["equipment"] != null:
 			# 触发掉落UI显示
