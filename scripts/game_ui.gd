@@ -132,6 +132,31 @@ func connect_signals():
 		inventory_button.pressed.connect(_on_inventory_pressed)
 	if menu_button:
 		menu_button.pressed.connect(_on_menu_pressed)
+	
+	# 连接玩家信号
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		var player = players[0]
+		if player.has_signal("hp_changed"):
+			player.hp_changed.connect(_on_player_hp_changed)
+		if player.has_signal("mp_changed"):
+			player.mp_changed.connect(_on_player_mp_changed)
+		if player.has_signal("level_up"):
+			player.level_up.connect(_on_player_level_up)
+		if player.has_signal("gold_changed"):
+			player.gold_changed.connect(_on_player_gold_changed)
+
+func _on_player_hp_changed(current: int, max_hp: int):
+	print("HP更新: ", current, "/", max_hp)
+
+func _on_player_mp_changed(current: int, max_mp: int):
+	print("MP更新: ", current, "/", max_mp)
+
+func _on_player_level_up(new_level: int):
+	print("升级: Lv.", new_level)
+
+func _on_player_gold_changed(amount: int):
+	print("金币: ", amount)
 
 func _process(delta):
 	# 更新FPS显示

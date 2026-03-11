@@ -680,6 +680,10 @@ func heal(amount: int):
 	current_hp = min(current_hp + amount, max_hp)
 	emit_signal("hp_changed", current_hp, max_hp)
 
+# ============ 击杀统计 ============
+func on_kill_enemy():
+	total_kills += 1
+
 # ============ 升级 ============
 func add_exp(amt: int):
 	current_exp += amt
