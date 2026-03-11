@@ -93,8 +93,8 @@ func die():
 	color_rect.color = Color(0.5, 0.5, 0.5, 0.5)
 	
 	# 掉落经验给玩家
-	if player and player.has_method("gain_exp"):
-		player.gain_exp(level * 10)
+	if player and player.has_method("add_exp"):
+		player.add_exp(level * 10)
 	
 	# 触发掉落
 	var game_manager = get_tree().current_scene.get_node_or_null("GameManager")

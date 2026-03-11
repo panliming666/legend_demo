@@ -102,8 +102,9 @@ func auto_save(player: Node):
 		"mp": player.current_mp,
 		"max_mp": player.max_mp,
 		"level": player.level,
-		"exp": player.exp,
-		"attack": player.attack if "attack" in player else 0,
+		"exp": player.current_exp,
+		"gold": player.gold if "gold" in player else 0,
+		"attack_power": player.attack_power if "attack_power" in player else 10,
 		"defense": player.defense,
 		"position": {
 			"x": player.global_position.x,
@@ -127,11 +128,14 @@ func load_to_player(player: Node):
 	player.current_mp = data.get("mp", player.max_mp)
 	player.max_mp = data.get("max_mp", player.max_mp)
 	player.level = data.get("level", 1)
-	player.exp = data.get("exp", 0)
+	player.current_exp = data.get("exp", 0)
 	player.defense = data.get("defense", player.defense)
 	
-	if "attack" in player and data.has("attack"):
-		player.attack = data["attack"]
+	if "attack_power" in player and data.has("attack_power"):
+		player.attack_power = data["attack_power"]
+	
+	if "gold" in player and data.has("gold"):
+		player.gold = data["gold"]
 	
 	# 恢复位置
 	if data.has("position"):
