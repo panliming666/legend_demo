@@ -168,7 +168,7 @@ func _init_skills():
 			skills = [
 				{"name": "符咒攻击", "damage": magic_power * 1.2, "cooldown": 1.0, "mp_cost": 5, "type": "projectile", "range": attack_range},
 				{"name": "召唤灵宠", "damage": 0, "cooldown": 8.0, "mp_cost": 20, "type": "summon", "count": 2},
-				{"name": "治疗符", "damage": 0, "cooldown": 5.0, "mp_cost": 15, "type": "heal", "amount": max_hp * 0.3},
+				{"name": "治疗符", "damage": 0, "cooldown": 5.0, "mp_cost": 15, "type": "heal", "heal_percent": 0.3},
 				{"name": "毒云术", "damage": magic_power * 1.5, "cooldown": 10.0, "mp_cost": 30, "type": "dot_aoe", "duration": 5.0, "range": 150}
 			]
 	
@@ -240,23 +240,40 @@ func _auto_attack_logic(delta):
 		velocity = direction * speed
 
 func _perform_normal_attack():
+	if not locked_target or not is_instance_valid(locked_target):
+		return
+	
 	attack_cooldown = attack_interval
 	
-	var damage = _calculate_damage(attack_power)
+	# 根据职业使用正确的伤害属性
+	var base_damage = attack_power
+	var is_magic = false
+	match current_class:
+		ClassType.SWORD:
+			base_damage = attack_power
+		ClassType.MAGE:
+			base_damage = magic_power
+			is_magic = true
+		ClassType.TAOIST:
+			base_damage = max(attack_power, int(magic_power * 0.8))
+	
+	var damage = _calculate_damage(base_damage, is_magic)
+	
+	# 检查范围
+	var dist = global_position.distance_to(locked_target.global_position)
+	if dist > attack_range:
+		return  # 目标太远
 	
 	match current_class:
 		ClassType.SWORD:
-			# 近战：直接伤害
 			if locked_target.has_method("take_damage"):
 				locked_target.take_damage(damage)
 				total_damage_dealt += damage
 		
 		ClassType.MAGE:
-			# 法师：发射魔法弹
 			_cast_magic_projectile(locked_target.global_position, damage)
 		
 		ClassType.TAOIST:
-			# 道士：发射符咒
 			_cast_talisman(locked_target.global_position, damage)
 
 # ============ 法师技能：魔法弹 ============
@@ -426,14 +443,29 @@ func use_skill(skill_index: int):
 
 # 剑修技能
 func _sword_skill(skill: Dictionary):
-	if skill.type == "ranged" or skill.type == "multi":
+	if skill.type == "ranged":
 		# 远程剑气
-		if locked_target:
+		if locked_target and is_instance_valid(locked_target):
+			var dmg = _calculate_damage(skill.damage)
+			locked_target.take_damage(dmg)
+			total_damage_dealt += dmg
+	elif skill.type == "multi":
+		# 疾风剑：多段攻击
+		var hit_count = skill.get("hits", 3)
+		if locked_target and is_instance_valid(locked_target):
+			for i in range(hit_count):
+				var dmg = _calculate_damage(skill.damage)
+				locked_target.take_damage(dmg)
+				total_damage_dealt += dmg
+				await get_tree().create_timer(0.15).timeout
+	elif skill.type == "heavy":
+		# 破军式：高伤害单体
+		if locked_target and is_instance_valid(locked_target):
 			var dmg = _calculate_damage(skill.damage)
 			locked_target.take_damage(dmg)
 			total_damage_dealt += dmg
 	else:
-		# 近战
+		# 近战AOE
 		var enemies = get_tree().get_nodes_in_group("enemies")
 		for e in enemies:
 			if global_position.distance_to(e.global_position) <= skill.range:
@@ -443,7 +475,7 @@ func _sword_skill(skill: Dictionary):
 func _mage_skill(skill: Dictionary):
 	match skill.type:
 		"projectile", "single":
-			if locked_target:
+			if locked_target and is_instance_valid(locked_target):
 				var dmg = _calculate_damage(skill.damage, true)
 				_cast_magic_projectile(locked_target.global_position, dmg)
 		
@@ -452,16 +484,22 @@ func _mage_skill(skill: Dictionary):
 			var center = locked_target.global_position if locked_target else global_position
 			var enemies = get_tree().get_nodes_in_group("enemies")
 			for e in enemies:
-				if global_position.distance_to(e.global_position) <= skill.range:
+				if center.distance_to(e.global_position) <= skill.range:
 					e.take_damage(_calculate_damage(skill.damage, true))
+					total_damage_dealt += _calculate_damage(skill.damage, true)
 		
 		"ultimate":
-			# 天雷降
-			if locked_target:
-				_lock_target(locked_target)
-				var dmg = _calculate_damage(skill.damage, true)
-				locked_target.take_damage(dmg)
-				total_damage_dealt += dmg
+			# 天雷降：超大范围伤害
+			var center = locked_target.global_position if locked_target and is_instance_valid(locked_target) else global_position
+			var enemies = get_tree().get_nodes_in_group("enemies")
+			var hit_count = 0
+			for e in enemies:
+				if center.distance_to(e.global_position) <= skill.range:
+					var dmg = _calculate_damage(skill.damage, true)
+					e.take_damage(dmg)
+					total_damage_dealt += dmg
+					hit_count += 1
+			print("天雷降命中", hit_count, "个敌人")
 
 # 符修技能
 func _taoist_skill(skill: Dictionary):
@@ -475,30 +513,91 @@ func _taoist_skill(skill: Dictionary):
 			_spawn_summons(skill.count)
 		
 		"heal":
-			heal(int(skill.amount))
+			var heal_percent = skill.get("heal_percent", 0.3)
+			heal(int(max_hp * heal_percent))
 		
 		"dot_aoe":
 			_create_poison_area(skill)
 
 func _spawn_summons(count: int):
 	for i in range(count):
-		var summon = CharacterBody2D.new()
-		summon.add_to_group("summons")
-		
-		var col = CollisionShape2D.new()
-		col.shape = CircleShape2D.new()
-		col.shape.radius = 10
-		summon.add_child(col)
-		
-		var visual = ColorRect.new()
-		visual.size = Vector2(20, 20)
-		visual.color = Color(0.3, 0.7, 0.4)
-		visual.position = Vector2(-10, -10)
-		summon.add_child(visual)
-		
+		var summon = _create_summon_ai()
 		summon.global_position = global_position + Vector2(randf_range(-30, 30), randf_range(-30, 30))
 		get_tree().current_scene.add_child(summon)
 		summons.append(summon)
+	print("召唤了", count, "个灵宠")
+
+func _create_summon_ai() -> Node:
+	var summon = Node2D.new()
+	summon.name = "灵宠"
+	summon.add_to_group("summons")
+	
+	# 碰撞体
+	var col = CollisionShape2D.new()
+	col.shape = CircleShape2D.new()
+	col.shape.radius = 10
+	summon.add_child(col)
+	
+	# 视觉效果
+	var visual = ColorRect.new()
+	visual.size = Vector2(20, 20)
+	visual.color = Color(0.3, 0.7, 0.4)
+	visual.position = Vector2(-10, -10)
+	summon.add_child(visual)
+	
+	# 为召唤物添加AI脚本
+	var script = GDScript.new()
+	script.source_code = '''
+extends Node2D
+
+var damage: int = 15
+var attack_range: float = 40.0
+var speed: float = 120.0
+var attack_cooldown: float = 1.0
+var last_attack: float = 0.0
+var target: Node = null
+var lifetime: float = 30.0  # 存活30秒
+
+func _ready():
+	# 30秒后消失
+	await get_tree().create_timer(lifetime).timeout
+	if is_inside_tree():
+		queue_free()
+
+func _process(delta):
+	last_attack += delta
+	
+	# 寻找最近的敌人
+	if target == null or not is_instance_valid(target):
+		target = _find_nearest_enemy()
+	
+	if target:
+		var dist = global_position.distance_to(target.global_position)
+		if dist > attack_range:
+			# 追逐
+			var dir = (target.global_position - global_position).normalized()
+			global_position += dir * speed * delta
+		elif last_attack >= attack_cooldown:
+			# 攻击
+			if target.has_method("take_damage"):
+				target.take_damage(damage)
+				last_attack = 0.0
+
+func _find_nearest_enemy() -> Node:
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	var nearest = null
+	var min_dist = 9999.0
+	for e in enemies:
+		var dist = global_position.distance_to(e.global_position)
+		if dist < min_dist:
+			min_dist = dist
+			nearest = e
+	return nearest
+'''
+	script.reload()
+	summon.set_script(script)
+	
+	return summon
 
 func _create_poison_area(skill: Dictionary):
 	var area = Area2D.new()
